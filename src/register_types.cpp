@@ -5,9 +5,8 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "summator.h"
-#include "example_class.h"
-#include "traffic_light.h"
+
+#include "sliceable_mesh_instance_3d.h"
 
 using namespace godot;
 
@@ -16,8 +15,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	GDREGISTER_CLASS(Summator);
-	GDREGISTER_CLASS(TrafficLight);
+	GDREGISTER_CLASS(SliceableMeshInstance3D);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

@@ -59,6 +59,7 @@ library = env.SharedLibrary(
 )
 
 copy = env.Install("{}/bin/{}/".format(projectdir, env["platform"]), library)
+copy_game = env.Install("C:/Godot/game-2/bin/windows", library)
 
-default_args = [library, copy]
+default_args = [library, copy, copy_game]
 Default(*default_args)
