@@ -4,7 +4,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/memory.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <godot_cpp/variant/transform3d.hpp>
+#include <godot_cpp/variant/Vector3.hpp>
 #include <godot_cpp/variant/basis.hpp>
 #include <godot_cpp/variant/plane.hpp>
 #include <godot_cpp/classes/primitive_mesh.hpp>
@@ -20,8 +20,8 @@ void SliceableMeshInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_inner_material", "p_inner_material"), &SliceableMeshInstance3D::set_inner_material);
 	ClassDB::add_property("SliceableMeshInstance3D", PropertyInfo(Variant::OBJECT, "inner_material", PROPERTY_HINT_RESOURCE_TYPE, "BaseMaterial3D,ShaderMaterial"), "set_inner_material", "get_inner_material");
 
-	ClassDB::bind_method(D_METHOD("slice_along_plane", "p_plane"), &SliceableMeshInstance3D::slice_along_plane);
-	ClassDB::bind_method(D_METHOD("slice_along_plane_indexed", "p_plane"), &SliceableMeshInstance3D::slice_along_plane_indexed);
+	ClassDB::bind_method(D_METHOD("slice_along_plane", "p_plane", "center", "out_mesh"), &SliceableMeshInstance3D::slice_along_plane);
+	ClassDB::bind_method(D_METHOD("slice_along_plane_indexed", "p_plane", "center", "out_mesh"), &SliceableMeshInstance3D::slice_along_plane_indexed);
 }
 
 SliceableMeshInstance3D::SliceableMeshInstance3D() : m_inner_material() { }
@@ -36,16 +36,26 @@ Ref<Material> SliceableMeshInstance3D::get_inner_material() const {
 	return m_inner_material;
 }
 
-void SliceableMeshInstance3D::slice_along_plane(const Plane p_plane) {
-	this->slice_along_plane_p(p_plane, false);
+void SliceableMeshInstance3D::slice_along_plane(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh) {
+	this->slice_along_plane_p(p_plane, center, false, out_mesh);
 }
 
-void SliceableMeshInstance3D::slice_along_plane_indexed(const Plane p_plane) {
-	this->slice_along_plane_p(p_plane, true);
+// void SliceableMeshInstance3D::slice_along_plane_boxed(const Plane &p_plane, const Array &boxes, ArrayMesh out_meshes) {
+
+// 	this->slice_along_plane_p(p_plane, false);
+// }
+
+
+void SliceableMeshInstance3D::slice_along_plane_indexed(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh) {
+	this->slice_along_plane_p(p_plane, center, true, out_mesh);
 }
 
-void SliceableMeshInstance3D::slice_along_plane_p(const Plane p_plane, const bool indexed) {
+void SliceableMeshInstance3D::slice_along_plane_p(const Plane &p_plane, const Vector3 &center, const bool indexed, Ref<ArrayMesh> out_mesh) {
 	Ref<Mesh> mesh = this->get_mesh();
+	Plane plane = p_plane;
+	if (plane.is_point_over(center)){
+		plane = -plane;
+	}
 
 	if (auto primitive_mesh = Object::cast_to<PrimitiveMesh>(mesh.ptr())) {
 		// mesh is of type PrimitiveMesh -> convert to ArrayMesh
@@ -58,10 +68,10 @@ void SliceableMeshInstance3D::slice_along_plane_p(const Plane p_plane, const boo
 			array_mesh->surface_set_material(i, mesh->surface_get_material(i));
 		}
 
-		this->set_mesh(this->slice_mesh_along_plane(array_mesh, p_plane, indexed));
+		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, indexed, out_mesh));
 	}
 	else if (auto array_mesh = Object::cast_to<ArrayMesh>(mesh.ptr())) {
-		this->set_mesh(this->slice_mesh_along_plane(array_mesh, p_plane, indexed));
+		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, indexed, out_mesh));
 	}
 	else if (Object::cast_to<ImmediateMesh>(mesh.ptr()) != nullptr) {
 		WARN_PRINT("Cannot slice ImmediateMesh.");
@@ -96,7 +106,7 @@ void add_lid(
 }
 
 Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
-	const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed
+	const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed, Ref<ArrayMesh> out_mesh
 ) const {
 	// transform the plane to object space
 	Plane plane_os = this->get_global_transform().xform_inv(p_plane);
@@ -129,14 +139,22 @@ Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
 		Ref<SurfaceTool> st_sliced = memnew(SurfaceTool);
 		st_sliced->begin(Mesh::PRIMITIVE_TRIANGLES);
 
+		// surface tool for the "drop" surface
+		Ref<SurfaceTool> st_upper = memnew(SurfaceTool);
+		st_upper->begin(Mesh::PRIMITIVE_TRIANGLES);
+
 		// will add new mesh data to the surface tools
-		slice_surface_along_plane(mdt, st_sliced, st_lid, pos_on_lid, pos_on_lid_defined, plane_os);
+		slice_surface_along_plane(mdt, st_sliced, st_upper, st_lid, pos_on_lid, pos_on_lid_defined, plane_os);
 
 		// shrinks the vertex array by creating an index array (triangle list)
 		// has a high performance penalty for big meshes
 		if (indexed) st_sliced->index();
 		// commit sliced surface as a new surface
 		st_sliced->commit(new_mesh);
+		st_upper->commit(out_mesh);
+
+
+
 		// if a surface was added, set material
 		if (new_mesh->get_surface_count() > created_surface_count) {
 			new_mesh->surface_set_material(created_surface_count, mdt->get_material());
@@ -146,9 +164,10 @@ Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
 
 	// shrinks the vertex array by creating an index array (triangle list)
 	// has a high performance penalty for big meshes
-	if (indexed) st_lid->index();
-	// commit lid as a new surface
-	st_lid->commit(new_mesh);
+	// if (indexed) st_lid->index();
+	// commit lid as a new surface (skipped for now)
+	// TODO: Use more advanded face filling method
+	// st_lid->commit(new_mesh);
 	// if a surface was added, set material
 	if (new_mesh->get_surface_count() > created_surface_count) {
 		new_mesh->surface_set_material(created_surface_count, m_inner_material);
@@ -158,7 +177,7 @@ Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
 }
 
 void SliceableMeshInstance3D::slice_surface_along_plane(
-	const Ref<MeshDataTool> p_mdt, const Ref<SurfaceTool> p_st_sliced, const Ref<SurfaceTool> p_st_lid,
+	const Ref<MeshDataTool> p_mdt, const Ref<SurfaceTool> p_st_sliced, const Ref<SurfaceTool> p_st_outmesh, const Ref<SurfaceTool> p_st_lid,
 	Vector3 &p_pos_on_lid, bool &p_pos_on_lid_defined, const Plane p_plane_os
 ) const {
 
@@ -196,12 +215,21 @@ void SliceableMeshInstance3D::slice_surface_along_plane(
 			verts[i] = p_mdt->get_vertex(verts_indices[i]);
 			verts_are_above[i] = p_plane_os.is_point_over(verts[i]);
 			verts_normals[i] = p_mdt->get_vertex_normal(verts_indices[i]);
+			verts_uvs[i] = p_mdt->get_vertex_uv(verts_indices[i]);
 
 			if (verts_are_above[i]) ++n_of_verts_above;
 		}
 
 		switch (n_of_verts_above) {
 			case 3: { // all vertices are above -> face is completely removed
+				for (size_t i = 0; i < 3; i++) {
+					p_st_outmesh->set_normal(verts_normals[i]); 
+					p_st_outmesh->set_uv(verts_uvs[i]); 
+					// copy bone weights and indices from original vertex
+					p_st_outmesh->set_bones(p_mdt->get_vertex_bones(verts_indices[i]));
+					p_st_outmesh->set_weights(p_mdt->get_vertex_weights(verts_indices[i]));
+					p_st_outmesh->add_vertex(verts[i]);
+				}
 				break;
 			}
 			case 0: { // all vertices are below -> face is kept
@@ -254,8 +282,35 @@ void SliceableMeshInstance3D::slice_surface_along_plane(
 				p_st_sliced->set_weights(b_weights);
 				p_st_sliced->set_normal(n1_normal); p_st_sliced->set_uv(n1_uv); p_st_sliced->add_vertex(n1);
 
+				
+				PackedInt32Array a0_bones = p_mdt->get_vertex_bones(verts_indices[a0]);
+				PackedFloat32Array a0_weights = p_mdt->get_vertex_weights(verts_indices[a0]);
+				PackedInt32Array a1_bones = p_mdt->get_vertex_bones(verts_indices[a1]);
+				PackedFloat32Array a1_weights = p_mdt->get_vertex_weights(verts_indices[a1]);
+				// first triangle: a0 -> n1 -> n0
+				p_st_outmesh->set_bones(a0_bones);
+				p_st_outmesh->set_weights(a0_weights);
+				p_st_outmesh->set_normal(verts_normals[a0]); p_st_outmesh->set_uv(verts_uvs[a0]); p_st_outmesh->add_vertex(verts[a0]);
+				p_st_outmesh->set_bones(a1_bones);    // ← bone data from a1 (for n1 vertex)
+				p_st_outmesh->set_weights(a1_weights);
+				p_st_outmesh->set_normal(n1_normal); p_st_outmesh->set_uv(n1_uv); p_st_outmesh->add_vertex(n1);
+				p_st_outmesh->set_bones(a0_bones);    // ← bone data from a0 (for n0 vertex)
+				p_st_outmesh->set_weights(a0_weights);
+				p_st_outmesh->set_normal(n0_normal); p_st_outmesh->set_uv(n0_uv); p_st_outmesh->add_vertex(n0);
+
+				
+				// second triangle: a0 -> a1 -> n1
+				p_st_outmesh->set_bones(a0_bones);
+				p_st_outmesh->set_weights(a0_weights);
+				p_st_outmesh->set_normal(verts_normals[a0]); p_st_outmesh->set_uv(verts_uvs[a0]); p_st_outmesh->add_vertex(verts[a0]);
+				p_st_outmesh->set_bones(a1_bones);
+				p_st_outmesh->set_weights(a1_weights);
+				p_st_outmesh->set_normal(verts_normals[a1]); p_st_outmesh->set_uv(verts_uvs[a1]); p_st_outmesh->add_vertex(verts[a1]);
+				p_st_outmesh->set_bones(a1_bones);   // was b_bones — FIXED
+				p_st_outmesh->set_weights(a1_weights); // was b_weights — FIXED
+				p_st_outmesh->set_normal(n1_normal); p_st_outmesh->set_uv(n1_uv); p_st_outmesh->add_vertex(n1);
 				if (p_pos_on_lid_defined) {
-					add_lid(p_st_lid, lid_normal, n0, p_pos_on_lid, n1, kd_tree);
+					add_lid(p_st_lid, lid_normal, n1, p_pos_on_lid, n0, kd_tree);
 				}
 				else { p_pos_on_lid = n0; p_pos_on_lid_defined = true; } // no need to add a lid
 
@@ -310,6 +365,20 @@ void SliceableMeshInstance3D::slice_surface_along_plane(
 				p_st_sliced->set_bones(b0_bones);
 				p_st_sliced->set_weights(b0_weights);
 				p_st_sliced->set_normal(verts_normals[b0]); p_st_sliced->set_uv(verts_uvs[b0]); p_st_sliced->add_vertex(verts[b0]);
+
+
+				// do the same for upper st
+				PackedInt32Array a_bones = p_mdt->get_vertex_bones(verts_indices[a]);
+				PackedFloat32Array a_weights = p_mdt->get_vertex_weights(verts_indices[a]);
+				p_st_outmesh->set_bones(a_bones);
+				p_st_outmesh->set_weights(a_weights);
+				p_st_outmesh->set_normal(verts_normals[a]); p_st_outmesh->set_uv(verts_uvs[a]); p_st_outmesh->add_vertex(verts[a]);
+				p_st_outmesh->set_bones(a_bones);
+				p_st_outmesh->set_weights(a_weights);
+				p_st_outmesh->set_normal(n0_normal); p_st_outmesh->set_uv(n0_uv); p_st_outmesh->add_vertex(n0);
+				p_st_outmesh->set_bones(a_bones);
+				p_st_outmesh->set_weights(a_weights);
+				p_st_outmesh->set_normal(n1_normal); p_st_outmesh->set_uv(n1_uv); p_st_outmesh->add_vertex(n1);
 
 				if (p_pos_on_lid_defined) {
 					add_lid(p_st_lid, lid_normal, n1, p_pos_on_lid, n0, kd_tree);

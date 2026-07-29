@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/mesh_data_tool.hpp>
 #include <godot_cpp/classes/surface_tool.hpp>
+#include <godot_cpp/variant/array.hpp>
 
 namespace godot {
 
@@ -24,17 +25,21 @@ public:
 	void set_inner_material(const Ref<Material> p_inner_material);
 	Ref<Material> get_inner_material() const;
 
-	void slice_along_plane(const Plane p_plane);
+	void slice_along_plane(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh);
+
+	void slice_along_plane_boxed(const Plane &p_plane, const Array &boxes, Array out_meshes);
+
 	// additionally shrinks the vertex array by creating an index array (triangle list), but takes significantly more time
-	void slice_along_plane_indexed(const Plane p_plane);
+	void slice_along_plane_indexed(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh);
 
 private:
-	void slice_along_plane_p(const Plane p_plane, const bool indexed);
+	void slice_along_plane_p(const Plane &p_plane, const Vector3 &center, const bool indexed, Ref<ArrayMesh> out_mesh);
 	Ref<ArrayMesh> slice_mesh_along_plane(
-		const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed
+		const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed, Ref<ArrayMesh> out_mesh
 	) const;
 	void slice_surface_along_plane(
 		const Ref<MeshDataTool> p_mdt, const Ref<SurfaceTool> p_st_sliced, const Ref<SurfaceTool> p_st_lid,
+		const Ref<SurfaceTool> p_st_outmesh,
 		Vector3 &p_pos_on_lid, bool &p_pos_on_lid_defined, const Plane p_plane_os
 	) const;
 };
