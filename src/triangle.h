@@ -1,5 +1,5 @@
-#ifndef DFS_H
-#define DFS_H
+#ifndef TRIANGLE_H
+#define TRIANGLE_H
 
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/mesh_data_tool.hpp>
@@ -11,23 +11,19 @@
 
 namespace godot {
 
-struct Triangle {
+class Triangle {
+    public:
+    int index;
     std::array<Vector3, 3> vertices;
+    std::vector<int> neighbors;
 
     Vector3& operator[](size_t idx) { return vertices[idx]; }
     const Vector3& operator[](size_t idx) const { return vertices[idx]; }
-    String get_all();
-};
+    void add_neighbor(int t_idx);
+    bool try_add_neighbor(Triangle& triangle);
+    static Triangle from_face(Ref<MeshDataTool> mdt, int index);
+    Triangle();
 
-class Adjacency {
-public:
-	std::vector<std::array<Triangle, 2>> adjacencies;
-
-	bool try_add_adjacency(Triangle &triangle1, Triangle &triangle2);
-    String get_all();
-
-private:
-	void add_adjacency(Triangle &triangle1, Triangle &triangle2);
 };
 
 } //namespace godot
