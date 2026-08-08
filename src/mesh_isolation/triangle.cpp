@@ -29,11 +29,17 @@ namespace godot {
         result.index = f_idx;
         for (size_t v_idx = 0; v_idx < 3; v_idx++)
         {
-           Vector3 v = mdt->get_vertex(mdt->get_face_vertex(f_idx, v_idx));
-           result[v_idx] = v;
+           int vert_idx = mdt->get_face_vertex(f_idx, v_idx);
+           result.vertex_indices[v_idx] = vert_idx;
+           result[v_idx] = mdt->get_vertex(vert_idx);
+           result.uvs[v_idx] = mdt->get_vertex_uv(vert_idx);
+           result.normals[v_idx] = mdt->get_vertex_normal(vert_idx);
+           result.bones[v_idx] = mdt->get_vertex_bones(vert_idx);
+           result.weights[v_idx] = mdt->get_vertex_weights(vert_idx);
         }
         return result;
     }
+    
 
     Triangle::Triangle(){
     }

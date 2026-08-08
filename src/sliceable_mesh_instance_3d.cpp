@@ -1,5 +1,5 @@
 #include "sliceable_mesh_instance_3d.h"
-#include "kd_tree.h"
+#include "misc/kd_tree.h"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/memory.hpp>

@@ -1,7 +1,7 @@
 #ifndef SLICE_CACHE_H
 #define SLICE_CACHE_H
 
-#include "kd_tree.h"
+#include "misc/kd_tree.h"
 #include "slice_vertex.h"
 
 #include <godot_cpp/classes/mesh_data_tool.hpp>

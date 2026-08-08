@@ -38,8 +38,8 @@ Run the following command to download godot-cpp:
 env = SConscript("godot-cpp/SConstruct", {"env": env, "customs": customs})
 env.Decider('timestamp-match')
 
-env.Append(CPPPATH=["src/", "src/slice_utils/"])
-sources = Glob("src/*.cpp") + Glob("src/slice_utils/*.cpp")
+env.Append(CPPPATH=["src/", "src/slice_utils/", "src/mesh_isolation/"])
+sources = Glob("src/*.cpp") + Glob("src/slice_utils/*.cpp") + Glob("src/mesh_isolation/*.cpp") + Glob("src/misc/*.cpp")
 
 if env["target"] in ["editor", "template_debug"]:
     try:

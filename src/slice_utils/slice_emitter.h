@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+#include <./mesh_isolation/triangle.h>
+
 using namespace godot;
 
 namespace godot::SliceUtils {

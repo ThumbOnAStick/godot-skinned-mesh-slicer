@@ -7,7 +7,7 @@
 
 
 #include "sliceable_mesh_instance_3d.h"
-#include "mesh_utils.h"
+#include "mesh_isolation_utils.h"
 
 using namespace godot;
 
@@ -17,8 +17,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 		return;
 	}
 	GDREGISTER_CLASS(SliceableMeshInstance3D);
-	GDREGISTER_CLASS(MeshUtils);
-	// GDREGISTER_CLASS(Island);
+	GDREGISTER_CLASS(MeshIsolationUtils);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
