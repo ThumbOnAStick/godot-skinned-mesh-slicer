@@ -27,15 +27,10 @@ public:
 
 	void slice_along_plane(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh);
 
-	void slice_along_plane_boxed(const Plane &p_plane, const Array &boxes, Array out_meshes);
-
-	// additionally shrinks the vertex array by creating an index array (triangle list), but takes significantly more time
-	void slice_along_plane_indexed(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh);
-
 private:
-	void slice_along_plane_p(const Plane &p_plane, const Vector3 &center, const bool indexed, Ref<ArrayMesh> out_mesh);
+	void slice_along_plane_p(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh);
 	Ref<ArrayMesh> slice_mesh_along_plane(
-		const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed, Ref<ArrayMesh> out_mesh
+		const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, Ref<ArrayMesh> out_mesh
 	) const;
 	void slice_surface_along_plane(
 		const Ref<MeshDataTool> p_mdt, const Ref<SurfaceTool> p_st_sliced, const Ref<SurfaceTool> p_st_lid,

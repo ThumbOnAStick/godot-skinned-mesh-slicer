@@ -22,7 +22,6 @@ void SliceableMeshInstance3D::_bind_methods() {
 	ClassDB::add_property("SliceableMeshInstance3D", PropertyInfo(Variant::OBJECT, "inner_material", PROPERTY_HINT_RESOURCE_TYPE, "BaseMaterial3D,ShaderMaterial"), "set_inner_material", "get_inner_material");
 
 	ClassDB::bind_method(D_METHOD("slice_along_plane", "p_plane", "center", "out_mesh"), &SliceableMeshInstance3D::slice_along_plane);
-	ClassDB::bind_method(D_METHOD("slice_along_plane_indexed", "p_plane", "center", "out_mesh"), &SliceableMeshInstance3D::slice_along_plane_indexed);
 }
 
 SliceableMeshInstance3D::SliceableMeshInstance3D() : m_inner_material() { }
@@ -38,20 +37,11 @@ Ref<Material> SliceableMeshInstance3D::get_inner_material() const {
 }
 
 void SliceableMeshInstance3D::slice_along_plane(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh) {
-	this->slice_along_plane_p(p_plane, center, false, out_mesh);
+	this->slice_along_plane_p(p_plane, center, out_mesh);
 }
 
-// void SliceableMeshInstance3D::slice_along_plane_boxed(const Plane &p_plane, const Array &boxes, ArrayMesh out_meshes) {
 
-// 	this->slice_along_plane_p(p_plane, false);
-// }
-
-
-void SliceableMeshInstance3D::slice_along_plane_indexed(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh) {
-	this->slice_along_plane_p(p_plane, center, true, out_mesh);
-}
-
-void SliceableMeshInstance3D::slice_along_plane_p(const Plane &p_plane, const Vector3 &center, const bool indexed, Ref<ArrayMesh> out_mesh) {
+void SliceableMeshInstance3D::slice_along_plane_p(const Plane &p_plane, const Vector3 &center, Ref<ArrayMesh> out_mesh) {
 	Ref<Mesh> mesh = this->get_mesh();
 	Plane plane = p_plane;
 	if (plane.is_point_over(center)){
@@ -69,10 +59,10 @@ void SliceableMeshInstance3D::slice_along_plane_p(const Plane &p_plane, const Ve
 			array_mesh->surface_set_material(i, mesh->surface_get_material(i));
 		}
 
-		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, indexed, out_mesh));
+		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, out_mesh));
 	}
 	else if (auto array_mesh = Object::cast_to<ArrayMesh>(mesh.ptr())) {
-		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, indexed, out_mesh));
+		this->set_mesh(this->slice_mesh_along_plane(array_mesh, plane, out_mesh));
 	}
 	else if (Object::cast_to<ImmediateMesh>(mesh.ptr()) != nullptr) {
 		WARN_PRINT("Cannot slice ImmediateMesh.");
@@ -89,7 +79,7 @@ void SliceableMeshInstance3D::slice_along_plane_p(const Plane &p_plane, const Ve
 }
 
 Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
-	const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, const bool indexed, Ref<ArrayMesh> out_mesh
+	const Ref<ArrayMesh> p_array_mesh, const Plane p_plane, Ref<ArrayMesh> out_mesh
 ) const {
 	// transform the plane to object space
 	Plane plane_os = this->get_global_transform().xform_inv(p_plane);
@@ -131,7 +121,6 @@ Ref<ArrayMesh> SliceableMeshInstance3D::slice_mesh_along_plane(
 
 		// shrinks the vertex array by creating an index array (triangle list)
 		// has a high performance penalty for big meshes
-		if (indexed) st_sliced->index();
 		// commit sliced surface as a new surface
 		st_sliced->commit(new_mesh);
 		st_upper->commit(out_mesh);
